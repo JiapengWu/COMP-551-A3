@@ -3,6 +3,8 @@ import scipy.misc  # to visualize only
 from matplotlib import pyplot as plt
 import linecache
 import parameter as p
+from scipy import ndimage
+
 
 # load a single image from either training or test dataset, index specified by n
 def load_single_image(dataset = "train", n = 10):
@@ -48,30 +50,65 @@ def show_images(x):
             plt.show()
 
 
-def filter_image(x, thresh = 225):
+def binarization(x, thresh = 225):
     y = np.copy(x)
     high_values = y >= thresh
     low_values = y < thresh  # Where values are low
-    y[low_values] = -0.1
-    y[high_values] = 1.175
+    y[low_values] = 0
+    y[high_values] = 1
+    return y
+
+
+def filter(x, func, param):
+    y = np.copy(x)
+    for i in range(y.shape[0]):
+        y[i] = func(x[i], param)
     return y
 
 
 # show two given sets of images
-def compare_results(x1, x2):
-    for i in range(x1.shape[0]):
+def compare_results(x1, x2, single=False):
+    if single:
         plt.subplot(121)
-        plt.imshow(x1[i])  # to visualize only
+        plt.imshow(x1)  # to visualize only
         plt.subplot(122)
-        plt.imshow(x2[i])
+        plt.imshow(x2)
         plt.show()
+    else:
+        for i in range(x1.shape[0]):
+            plt.subplot(121)
+            plt.imshow(x1[i])  # to visualize only
+            plt.subplot(122)
+            plt.imshow(x2[i])
+            plt.show()
+
+
+def pipeline():
+    for i in range(500):
+        x = load_sample_images(i + 1)
+        y = binarization(x, p.thresh_hold)
+        np.save("../data/preprocessed_samples/Training_X_" + str(i + 1), y)
+
+
+
 
 
 if __name__ == '__main__':
     # partition_trainin_set(100)
     # show_test(2)
     x = load_sample_images(8)
-    # show_images(x)
-    y = filter_image(x, p.thresh_hold)
-    compare_results(x, y)
+    blurred_x = filter(x, ndimage.maximum_filter, 2)
+    # compare_results(x, blurred_x)
+
+    y1 = binarization(x, p.thresh_hold)
+    y2 = binarization(blurred_x, p.thresh_hold)
+    compare_results(y1, y2)
+
+    # open_square = ndimage.binary_opening(y)
+    # eroded_square = ndimage.binary_erosion(y)
+    # reconstruction = ndimage.binary_propagation(eroded_square, mask=y)
+    # compare_results(y, reconstruction)
+
+    # pipeline()
+
 
