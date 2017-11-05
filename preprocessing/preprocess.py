@@ -87,23 +87,25 @@ def compare_results(x1, x2, single=False):
 
 # this function shall be only called when adopting a different blur function or parameter
 # than the one used last time
-def first_time_pipeline(blur_func, parameter=None):
+def pipeline():
     path = "../data/preprocessed_samples/Training_X_"
     result = []
     for i in range(500):
         x = load_sample_images(i + 1)
-        blurred_x = filter(x, blur_func, parameter)
+        blurred_x = filter(x, p.blur_function, p.blur_parameter)
         y = binarization(blurred_x, p.thresh_hold)
         result.append(np.copy(y))
     training_data = np.array(result)
+    np.save("../data/training_data", training_data)
     return training_data
 
 
-# called if the current blur function and parameter stays the same
-def pipeline():
-    path = "../data/preprocessed_samples/Training_X_"
-    training_data = np.array([np.load(path + str(i + 1) + ".npy") for i in range(500)])
-    return training_data
+def preprocess_test():
+    x = np.loadtxt('../data/test_x.csv', delimiter=",")  # load from text
+    x = x.reshape(-1, 64, 64)  # reshape
+    test_data = np.array([binarization(filter(x[i], p.blur_function, p.blur_parameter), p.thresh_hold) for i in range(x.shape[0])])
+    np.save("../data/test_data", test_data)
+    return test_data
 
 
 if __name__ == '__main__':
@@ -122,8 +124,8 @@ if __name__ == '__main__':
     # reconstruction = ndimage.binary_propagation(eroded_square, mask=y)
     # compare_results(y, reconstruction)
 
-    training_data = first_time_pipeline(p.blur_function, p.blur_parameter)
-    print training_data.shape
-    np.save("../data/training_data", training_data)
+    # training_data = pipeline()
+    test_data = preprocess_test()
+    print test_data.shape
 
 
