@@ -143,6 +143,7 @@ def validate_cnn(x_test):
 
 if __name__ == '__main__':
 	#Note: For the binary model, we can bypass
+	train_x = load_binary_input_x()
 
-	train_x, train_y, test_x = load_inputs() 
+	a, train_y, b = load_inputs() 
 	cnn(train_x, train_y)
