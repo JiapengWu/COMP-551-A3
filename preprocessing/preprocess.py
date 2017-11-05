@@ -24,6 +24,7 @@ def partition_trainin_set(n = 100, size = 50000):
                 image = f.readline()
                 out.write(image)
 
+
 # load all images from a sample csv indicated by n
 def load_sample_images(n = 2):
     x = np.loadtxt('../data/sample' + str(n) + '.csv', delimiter=",")  # load from text
@@ -83,40 +84,45 @@ def compare_results(x1, x2, single=False):
             plt.show()
 
 
-def first_time_pipeline():
+# this function shall be only called when adopting a different blur function or parameter
+# than the one used last time
+def first_time_pipeline(blur_func, parameter=None):
     path = "../data/preprocessed_samples/Training_X_"
+
     for i in range(500):
         x = load_sample_images(i + 1)
-        y = binarization(x, p.thresh_hold)
-        np.save(path + str(i + 1), y)
+        blurred_x = filter(x, blur_func, parameter)
+        y = binarization(blurred_x, p.thresh_hold)
 
-    training_data = np.array([np.load(path + str(i + 1)) for i in range(500)])
+    training_data = np.array([np.load(path + str(i + 1) + ".npy") for i in range(500)])
     return training_data
 
 
+# called if the current blur function and parameter stays the same
 def pipeline():
     path = "../data/preprocessed_samples/Training_X_"
-    training_data = np.array([np.load(path + str(i + 1)) for i in range(500)])
+    training_data = np.array([np.load(path + str(i + 1) + ".npy") for i in range(500)])
     return training_data
-
 
 
 if __name__ == '__main__':
     # partition_trainin_set(100)
     # show_test(2)
-    x = load_sample_images(8)
-    blurred_x = filter(x, ndimage.maximum_filter, 2)
+    # x = load_sample_images(8)
+    # blurred_x = filter(x, ndimage.maximum_filter, 2)
     # compare_results(x, blurred_x)
 
-    y1 = binarization(x, p.thresh_hold)
-    y2 = binarization(blurred_x, p.thresh_hold)
-    compare_results(y1, y2)
+    # y1 = binarization(x, p.thresh_hold)
+    # y2 = binarization(blurred_x, p.thresh_hold)
+    # compare_results(y1, y2)
 
     # open_square = ndimage.binary_opening(y)
     # eroded_square = ndimage.binary_erosion(y)
     # reconstruction = ndimage.binary_propagation(eroded_square, mask=y)
     # compare_results(y, reconstruction)
 
-    # pipeline()
+    training_data = first_time_pipeline(p.blur_function, p.blur_parameter)
+    print training_data.shape
+    np.save("../data/training_data", training_data)
 
 

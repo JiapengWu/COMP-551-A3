@@ -8,3 +8,5 @@ To run the preprocessing:
 - Go to the file `preprocessing.py`. If it's the first time your run it, be sure to call the function "partition_trainin_set" with default parameters(no parameters passed).
 - Check out the function list, there are bunch of function either for loading data, showing images or playing around with.
 - Run "filter" on the training images for binarization.
+
+The complete preprocessing would simply be running 'pipeline()', which generated 500 np files that can be firectly read
