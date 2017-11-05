@@ -83,13 +83,21 @@ def compare_results(x1, x2, single=False):
             plt.show()
 
 
-def pipeline():
+def first_time_pipeline():
+    path = "../data/preprocessed_samples/Training_X_"
     for i in range(500):
         x = load_sample_images(i + 1)
         y = binarization(x, p.thresh_hold)
-        np.save("../data/preprocessed_samples/Training_X_" + str(i + 1), y)
+        np.save(path + str(i + 1), y)
+
+    training_data = np.array([np.load(path + str(i + 1)) for i in range(500)])
+    return training_data
 
 
+def pipeline():
+    path = "../data/preprocessed_samples/Training_X_"
+    training_data = np.array([np.load(path + str(i + 1)) for i in range(500)])
+    return training_data
 
 
 
