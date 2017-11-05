@@ -29,7 +29,7 @@ prediction_file_path = "prediction.csv"
 #This is the pipeline function from preprocessing
 #returns (50000, 64, 64, 1) shape np array
 def load_binary_input_x():
-    path = "../data/training_data"
+    path = "../data/training_data.npy"
     training_data = np.load(path)
     training_data = training_data.reshape(50000, 64, 64, 1)
     print("Training data x: {}".format(training_data.shape))
