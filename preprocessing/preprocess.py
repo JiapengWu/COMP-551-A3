@@ -3,6 +3,7 @@ import scipy.misc  # to visualize only
 from matplotlib import pyplot as plt
 import linecache
 import parameter as p
+from copy import deepcopy
 from scipy import ndimage
 
 
@@ -88,13 +89,13 @@ def compare_results(x1, x2, single=False):
 # than the one used last time
 def first_time_pipeline(blur_func, parameter=None):
     path = "../data/preprocessed_samples/Training_X_"
-
+    result = []
     for i in range(500):
         x = load_sample_images(i + 1)
         blurred_x = filter(x, blur_func, parameter)
         y = binarization(blurred_x, p.thresh_hold)
-
-    training_data = np.array([np.load(path + str(i + 1) + ".npy") for i in range(500)])
+        result.append(np.copy(y))
+    training_data = np.array(result)
     return training_data
 
 
