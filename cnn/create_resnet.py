@@ -33,6 +33,8 @@ prediction_filepath = "resnet.prediction.csv"
 weights_filepath="resnet.weights.best.hdf5"	
 
 
+
+
 #This is the pipeline function from preprocessing
 #returns (50000, 64, 64, 1) shape np array
 def load_x():
@@ -82,8 +84,8 @@ def train_resnet():
 	y_train,a = load_y()
 
 
-	checkpoint = ModelCheckpoint(weights_filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-	stopping = EarlyStopping(monitor='cc', min_delta=0.001, patience=10, verbose=1, mode='auto')
+	checkpoint = ModelCheckpoint(weights_filepath, monitor='acc', verbose=1, save_best_only=True, mode='max')
+	stopping = EarlyStopping(monitor='acc', min_delta=0.001, patience=10, verbose=1, mode='auto')
 	callbacks_list = [checkpoint]
 
 	print("Training ResNet")
@@ -92,5 +94,42 @@ def train_resnet():
 			  verbose=1,callbacks = callbacks_list, validation_split=0.1) # ...holding out 10% of the data for validation
 
 
+#Predicts our test set and outputs results in csv format
+def predict(model, label_encoder):
+
+	labels = label_encoder.classes_
+
+	#load our test set
+	x_test = load_test()
+
+	#use model to predict our test set
+	#this contains probabilities of each class
+	pred = model.predict(x_test,verbose = 1)
+
+	#this transforms pred to hold indices of the classes
+	result = []
+	for i in range(pred.shape[0]):
+		label = labels[np.argmax(pred[i])]
+		result.append(label)
+
+	result2 = list(map(lambda x : int(x), result))
+
+
+	#save to csv
+	with open(prediction_filepath, 'w') as f:
+		writer = csv.writer(f)
+		writer.writerow(('Id', 'Label'))
+		for i in range(1,len(result2)+1):
+			writer.writerow((i, result2[i-1]))
+
+	print("\nPredictions Successfully saved in ./{}".format(prediction_filepath))
+	 
+
 if __name__ == '__main__':
-	train_resnet()
+	#train_resnet()
+	a,le = load_y()
+	print("loading model")
+	resnet = model.load_weights("resnet.weights.best.hdf5")
+
+	predict(resnet, le)
+
