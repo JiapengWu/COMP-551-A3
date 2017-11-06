@@ -1,10 +1,10 @@
 import numpy   as np
-import scipy.misc  # to visualize only
-from matplotlib import pyplot as plt
+#import scipy.misc  # to visualize only
+#from matplotlib import pyplot as plt
 import linecache
 import parameter as p
 from copy import deepcopy
-from scipy import ndimage
+#from scipy import ndimage
 
 
 # load a single image from either training or test dataset, index specified by n
