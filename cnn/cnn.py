@@ -45,7 +45,7 @@ def load_x():
 
 def load_y():
 	path = "../data/train_y.csv"
-	training_data_y = np.loadtxt(y_train_file, delimiter="\n")
+	training_data_y = np.loadtxt(path, delimiter="\n")
 	#Label Encode our results.
 	#[  0.   1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
 	#15.  16.  17.  18.  20.  21.  24.  25.  27.  28.  30.  32.  35.  36.  40.
@@ -60,14 +60,14 @@ def load_y():
 	#one-hot encoding
 	training_data_y = np_utils.to_categorical(training_data_y)
 
-	print("Training data y: {}".format(training_data.shape))
+	print("Training data y: {}".format(training_data_y.shape))
 
-	return training_data_y
+	return training_data_y, le
 
 def load_test():
 	path = "../data/test_data.npy"
 	test_data_x = np.load(path)
-	test_data_x = test_data_x.reshape(50000, 64, 64, 1)
+	test_data_x = test_data_x.reshape(10000, 64, 64, 1)
 
 	print("Test data x: {}".format(test_data_x.shape))
 
@@ -178,36 +178,48 @@ def train_cnn(X_train, Y_train, model):
 #loads a cnn with specified weights, returns model
 def load_cnn(weights_filepath):
 
+	b = build_cnn(load_x(), load_y())
+	b.load_weights(weights_filepath)
+
 	#build model like before
-	return build_cnn(load_x(), load_y()).load_weights(weights_filepath)
+	return b
 
 
 #Predicts our test set and outputs results in csv format
-def predict(model):
+def predict(model, label_encoder):
+
+	labels = label_encoder.classes_
 
 	#load our test set
 	x_test = load_test()
 
 	#use model to predict our test set
+	#this contains probabilities of each class
 	pred = model.predict(x_test,verbose = 1)
 
-	#results are one-hot encoded, we'll decode back
-	predictions = le.inverse_transform(pred)
+	#this transforms pred to hold indices of the classes
+	result = []
+	for i in range(pred.shape[0]):
+		label = labels[np.argmax(pred[i])]
+		result.append(label)
+
+	result2 = list(map(lambda x : int(x), result))
+
 
 	#save to csv
 	with open(prediction_filepath, 'w') as f:
 		writer = csv.writer(f)
-		writer.writerow(('Id', 'Category'))
-		for i in range(1,len(predictions)+1):
-			writer.writerow((i, predictions[i-1]))
+		writer.writerow(('Id', 'Label'))
+		for i in range(1,len(result2)+1):
+			writer.writerow((i, result2[i-1]))
 
-	print("Predictions Successfully saved in {}".format(prediction_filepath))
+	print("\nPredictions Successfully saved in ./{}".format(prediction_filepath))
 	 
 
 
 if __name__ == '__main__':
 	#Note: For the binary model, we can bypass
-	train_x = load_binary_input_x()
-
-	train_y = load_inputs() 
-	train_cnn(train_x, train_y)
+	m = load_cnn(weights_filepath)
+	a, le = load_y()
+	#train_cnn(load_x(), load_y(), m)
+	predict(m, le)
