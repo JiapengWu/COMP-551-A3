@@ -129,6 +129,7 @@ if __name__ == '__main__':
 	#train_resnet()
 	a,le = load_y()
 	print("loading model")
+	model = build_resnet()
 	resnet = model.load_weights("resnet.weights.best.hdf5")
 
 	predict(resnet, le)
