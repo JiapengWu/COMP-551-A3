@@ -66,6 +66,15 @@ def load_y():
 	print("Training data y: {}".format(training_data_y.shape))
 
 	return training_data_y, le
+	
+def load_test():
+	path = "../data/test_data.npy"
+	test_data_x = np.load(path)
+	test_data_x = test_data_x.reshape(10000, 64, 64, 1)
+
+	print("Test data x: {}".format(test_data_x.shape))
+
+	return test_data_x
 
 def build_resnet():
 	input_shape = (1, 64, 64)
