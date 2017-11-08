@@ -101,6 +101,7 @@ class MultilayerNN():
     def build_model(self, nn_hdim, num_passes=20000, print_loss=False):
         np.random.seed(0)
 
+
     # for training
     def _forward(self, dataset):
         self._check_dataset(dataset)

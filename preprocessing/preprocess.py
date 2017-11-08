@@ -111,13 +111,15 @@ def preprocess_test():
 if __name__ == '__main__':
     # partition_trainin_set(100)
     # show_test(2)
-    # x = load_sample_images(8)
-    # blurred_x = filter(x, ndimage.maximum_filter, 2)
+    x = load_sample_images(8)
+    blurred_x1 = filter(x, ndimage.median_filter, 2)
+
+    blurred_x2 = filter(x, ndimage.maximum_filter, 2)
     # compare_results(x, blurred_x)
 
-    # y1 = binarization(x, p.thresh_hold)
-    # y2 = binarization(blurred_x, p.thresh_hold)
-    # compare_results(y1, y2)
+    y1 = binarization(blurred_x2, p.thresh_hold)
+    y2 = binarization(blurred_x1, p.thresh_hold)
+    compare_results(y1, y2)
 
     # open_square = ndimage.binary_opening(y)
     # eroded_square = ndimage.binary_erosion(y)
@@ -125,7 +127,7 @@ if __name__ == '__main__':
     # compare_results(y, reconstruction)
 
     # training_data = pipeline()
-    test_data = preprocess_test()
-    print test_data.shape
+    # test_data = preprocess_test()
+    # print test_data.shape
 
 
