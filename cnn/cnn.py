@@ -4,45 +4,82 @@ from keras.layers import Input, Convolution2D, MaxPooling2D, Dense, Dropout, Act
 from keras.utils import np_utils # utilities for one-hot encoding of ground truth values
 from CNNParameters import batch_size, num_epochs, kernel_size, pool_size, conv_depth_1, conv_depth_2, drop_prob_1, drop_prob_2, hidden_size
 from sklearn import preprocessing
-
+from keras.callbacks import ModelCheckpoint,EarlyStopping
+import csv
 import numpy as np
 
 '''
-	1. Run first_time_pipeline() in ../preprocessing/preprocess.py
-	2. Run 
+	0. Make sure training and testing data are in ../data
+	1. Run:
+			load_x() to load training x
+			load_y() to load training y
 '''
 
 
-x_train_file = open('../data/sample1.csv')
+#x_train_file = open('../data/sample1.csv')
 #x_train_file = open('../data/train_x.csv')
-y_train_file = open('../data/train_y.csv')
-x_test_file = open('../data/test_x.csv')
+#y_train_file = open('../data/train_y.csv')
+#x_test_file = open('../data/test_x.csv')
 
 
-#model output path
+#model output path : This stores the latest model
 output_path = "test_cnn.h5"
 
-#prediction output path
-prediction_file_path = "prediction.csv"
+#prediction output path : Final prediction for Kaggle submission
+prediction_filepath = "prediction.csv"
+
+#where we will save the weights
+weights_filepath="weights.best.hdf5"	
 
 
 #This is the pipeline function from preprocessing
 #returns (50000, 64, 64, 1) shape np array
-def load_binary_input_x():
-    path = "../data/training_data.npy"
-    training_data = np.load(path)
-    training_data = training_data.reshape(50000, 64, 64, 1)
-    print("Training data x: {}".format(training_data.shape))
-    return training_data
+def load_x():
+	path = "../data/training_data.npy"
+	training_data_x = np.load(path)
+	training_data_x = training_data_x.reshape(50000, 64, 64, 1)
 
+	print("Training data x: {}".format(training_data_x.shape))
 
-#loads files
+	return training_data_x
+
+def load_y():
+	path = "../data/train_y.csv"
+	training_data_y = np.loadtxt(path, delimiter="\n")
+	#Label Encode our results.
+	#[  0.   1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
+	#15.  16.  17.  18.  20.  21.  24.  25.  27.  28.  30.  32.  35.  36.  40.
+	#42.  45.  48.  49.  54.  56.  63.  64.  72.  81.]
+	#will be encoded to 0,1,2,3,...
+	#this means that "81" will be [0,0,0,0,0,...,0,1] where the 40th entry is 1
+	le = preprocessing.LabelEncoder()
+
+	le.fit(training_data_y)		#fit with label encoder
+	training_data_y = le.transform(training_data_y)		#encode with label encoder
+
+	#one-hot encoding
+	training_data_y = np_utils.to_categorical(training_data_y)
+
+	print("Training data y: {}".format(training_data_y.shape))
+
+	return training_data_y, le
+
+def load_test():
+	path = "../data/test_data.npy"
+	test_data_x = np.load(path)
+	test_data_x = test_data_x.reshape(10000, 64, 64, 1)
+
+	print("Test data x: {}".format(test_data_x.shape))
+
+	return test_data_x
+
+#DEPRECATED
 #Returns (x_train, x_test, y_train)
 def load_inputs():
 
 	#loading and reshaping Training data
-	x_train = np.loadtxt(x_train_file, delimiter=",") # load from text 
-	x_train = x_train.reshape(x_train.shape[0], 64, 64, 1) # reshape 
+	#x_train = np.loadtxt(x_train_file, delimiter=",") # load from text 
+	#x_train = x_train.reshape(x_train.shape[0], 64, 64, 1) # reshape 
 
 	#loading, preprocess training data
 	y_train = np.loadtxt(y_train_file, delimiter="\n")
@@ -50,9 +87,9 @@ def load_inputs():
 
 	#Label Encode our results.
 	#[  0.   1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
- 	#15.  16.  17.  18.  20.  21.  24.  25.  27.  28.  30.  32.  35.  36.  40.
-  	#42.  45.  48.  49.  54.  56.  63.  64.  72.  81.]
-  	#will be encoded to 0,1,2,3,...
+	#15.  16.  17.  18.  20.  21.  24.  25.  27.  28.  30.  32.  35.  36.  40.
+	#42.  45.  48.  49.  54.  56.  63.  64.  72.  81.]
+	#will be encoded to 0,1,2,3,...
 	le = preprocessing.LabelEncoder()
 
 
@@ -65,27 +102,27 @@ def load_inputs():
 	print("Number of classes: {}".format(len(le.classes_)))
 
 	#loading and reshaping Testing data
-	x_test = np.loadtxt(x_test_file, delimiter=",") # load from text 
-	x_test = x_test.reshape(x_test.shape[0], 64, 64, 1) # reshape 
+	#x_test = np.loadtxt(x_test_file, delimiter=",") # load from text 
+	#x_test = x_test.reshape(x_test.shape[0], 64, 64, 1) # reshape 
 
 	#normalize data
-	X_train = x_train.astype('float32') 
-	X_test = x_test.astype('float32')
-	X_train /= np.max(X_train) # Normalise data to [0, 1] range
-	X_test /= np.max(X_test) # Normalise data to [0, 1] range
+	#X_train = x_train.astype('float32') 
+	#X_test = x_test.astype('float32')
+	#X_train /= np.max(X_train) # Normalise data to [0, 1] range
+	#X_test /= np.max(X_test) # Normalise data to [0, 1] range
 
 	#print(X_train[8], y_train[8])
-	print("Shape of Train -X: {}".format(x_train.shape))
-	print("Shape of Train -Y: {}".format(y_train.shape))
-	print("Shape of Testing : {}".format(x_test.shape))
+	#print("Shape of Train -X: {}".format(x_train.shape))
+	#print("Shape of Train -Y: {}".format(y_train.shape))
+	#print("Shape of Testing : {}".format(x_test.shape))
 
 
 	print("Data loaded Successfully")
-	return(X_train, y_train, X_test)
+	return(y_train)
 
 
-#Trains the CNN, outputs the model to a .h5 file
-def train_cnn(X_train, Y_train):
+#Builds the cnn, returns the model
+def build_cnn(X_train, Y_train):
 
 	print("Starting CNN")
 
@@ -116,35 +153,73 @@ def train_cnn(X_train, Y_train):
 	model = Model(inputs=inp, outputs=out) # To define a model, just specify its input and output layers
 
 	model.compile(loss='categorical_crossentropy', # using the cross-entropy loss function
-	              optimizer='adam', # using the Adam optimiser
-	              metrics=['accuracy']) # reporting the accuracy
+				  optimizer='adam', # using the Adam optimiser
+				  metrics=['accuracy']) # reporting the accuracy
+	return model
 
+
+#takes inputs and model, and trains model. Saves weights and model
+def train_cnn(X_train, Y_train, model):
+
+	#callbacks and saving
+	checkpoint = ModelCheckpoint(weights_filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+	stopping = EarlyStopping(monitor='val_acc', min_delta=0.0007, patience=10, verbose=1, mode='auto')
+	callbacks_list = [checkpoint]
+
+	print("Training CNN")
 	model.fit(X_train, Y_train,                # Train the model using the training set...
-	          batch_size=batch_size, epochs=num_epochs,
-	          verbose=1, validation_split=0.1) # ...holding out 10% of the data for validation
-	#model.evaluate(X_test, Y_test, verbose=1)  # Evaluate the trained model on the test set!
+			  batch_size=batch_size, epochs=num_epochs,
+			  verbose=1,callbacks = callbacks_list, validation_split=0.1) # ...holding out 10% of the data for validation
 
 	#save the model
 	model.save(output_path)
 	print("Model trained and saved as {}".format(output_path))
 
+#loads a cnn with specified weights, returns model
+def load_cnn(weights_filepath):
+
+	b = build_cnn(load_x(), load_y())
+	b.load_weights(weights_filepath)
+
+	#build model like before
+	return b
+
+
 #Predicts our test set and outputs results in csv format
-def validate_cnn(x_test):
-	#load our trained model
-	model.load_model(output_path)
+def predict(model, label_encoder):
+
+	labels = label_encoder.classes_
+
+	#load our test set
+	x_test = load_test()
 
 	#use model to predict our test set
+	#this contains probabilities of each class
 	pred = model.predict(x_test,verbose = 1)
 
-	#results are one-hot encoded, we'll decode back
-	predictions = le.inverse_transform(pred)
+	#this transforms pred to hold indices of the classes
+	result = []
+	for i in range(pred.shape[0]):
+		label = labels[np.argmax(pred[i])]
+		result.append(label)
+
+	result2 = list(map(lambda x : int(x), result))
+
 
 	#save to csv
-	np.savetxt(prediction_file_path, delimiter = '\n')
+	with open(prediction_filepath, 'w') as f:
+		writer = csv.writer(f)
+		writer.writerow(('Id', 'Label'))
+		for i in range(1,len(result2)+1):
+			writer.writerow((i, result2[i-1]))
+
+	print("\nPredictions Successfully saved in ./{}".format(prediction_filepath))
+	 
+
 
 if __name__ == '__main__':
 	#Note: For the binary model, we can bypass
-	train_x = load_binary_input_x()
-
-	a, train_y, b = load_inputs() 
-	cnn(train_x, train_y)
+	m = load_cnn(weights_filepath)
+	a, le = load_y()
+	#train_cnn(load_x(), load_y(), m)
+	predict(m, le)

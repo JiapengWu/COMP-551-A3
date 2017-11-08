@@ -11,7 +11,7 @@ hidden_size:	# neurons in dense layers
 '''
 
 batch_size = 32
-num_epochs = 20 
+num_epochs = 300
 kernel_size = 3 # use 3x3 kernels
 pool_size = 2 # 2x2 pooling
 conv_depth_1 = 32 #start with 32 kernels
