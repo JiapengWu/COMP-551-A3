@@ -1,158 +1,667 @@
-# %% 1
-# Package imports
-import matplotlib.pyplot as plt
+__author__ = "Davide Lasagna, Dipartimento di Ingegneria Aerospaziale, Politecnico di Torino"
+
+__licence_ = """
+Copyright (C) 2011  Davide Lasagna
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+import pickle as pickle
+import copy, sys
+
 import numpy as np
-import sklearn
-import sklearn.datasets
-import sklearn.linear_model
-import matplotlib
 
-# %% 2
-np.random.seed(3)
-X, y = sklearn.datasets.make_moons(200, noise=0.20)
-plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=plt.cm.Spectral)
-
-# %% 3
-# Train the logistic rgeression classifier
-clf = sklearn.linear_model.LogisticRegressionCV()
-clf.fit(X, y)
+try:
+    import numexpr as ne
+except ImportError:
+    numexpr = None
 
 
-# %% 4
-# Helper function to plot a decision boundary.
-# If you don't fully understand this function don't worry, it just generates the contour plot below.
-def plot_decision_boundary(pred_func):
-    # Set min and max values and give it some padding
-    x_min, x_max = X[:, 0].min() - .5, X[:, 0].max() + .5
-    y_min, y_max = X[:, 1].min() - .5, X[:, 1].max() + .5
-    h = 0.01
-    # Generate a grid of points with distance h between them
-    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
-    # Predict the function value for the whole gid
-    Z = pred_func(np.c_[xx.ravel(), yy.ravel()])
-    Z = Z.reshape(xx.shape)
-    # Plot the contour and training examples
-    plt.contourf(xx, yy, Z, cmap=plt.cm.Spectral)
-    plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Spectral)
+class Dataset(object):
+    def __init__(self, inputs, targets):
+
+        # Check that the dataset is consistent
+        if not inputs.ndim == 2:
+            raise ValueError('inputs should be a two dimensions array.')
+
+        if not targets.ndim == 2:
+            raise ValueError('targets should be a two dimensions array.')
+
+        if inputs.shape[0] != targets.shape[0]:
+            raise ValueError('the length of the inputs is not consistent with length of the targets.')
+
+        # set attributes
+        self.inputs = inputs
+        self.targets = targets
+
+        # length of the dataset, number of samples
+        self.n_samples = self.inputs.shape[0]
+        self.n_inputs = self.inputs.shape[1]
+
+    def split(self, fractions=[0.5, 0.5]):
+        """Split randomly the dataset into smaller dataset.
+
+        Parameters
+        ----------
+        fraction: list of floats, default = [0.5, 0.5]
+            the dataset is split into ``len(fraction)`` smaller
+            dataset, and the ``i``-th dataset has a size
+            which is ``fraction[i]`` of the original dataset.
+            Note that ``sum(fraction)`` can also be smaller than one
+            but not greater.
+
+        Returns
+        -------
+        subsets: list of :py:class:`nn.Dataset`
+            a list of the subsets of the original datasets
+        """
+
+        if sum(fractions) > 1.0 or sum(fractions) <= 0:
+            raise ValueError("the sum of fractions argument should be between 0 and 1")
+
+        # random indices
+        idx = np.arange(self.n_samples)
+        np.random.shuffle(idx)
+
+        # insert zero
+        fractions.insert(0, 0)
+
+        # gte limits of the subsets
+        limits = (np.cumsum(fractions) * self.n_samples).astype(np.int32)
+
+        subsets = []
+        # create output dataset
+        for i in range(len(fractions) - 1):
+            subsets.append(
+                Dataset(self.inputs[idx[limits[i]:limits[i + 1]]], self.targets[idx[limits[i]:limits[i + 1]]]))
+
+        return subsets
+
+    def __len__(self):
+        return len(self.inputs)
 
 
-# %% 12
-# Plot the decision boundary
-plot_decision_boundary(lambda x: clf.predict(x))
-plt.title("Logistic Regression")
+class MultiLayerPerceptron():
+    """A Multi Layer Perceptron feed-forward neural network.
 
-# %% 15
-num_examples = len(X)  # training set size
-nn_input_dim = 2  # input layer dimensionality
-nn_output_dim = 2  # output layer dimensionality
+    This class implements a multi layer feed-forward neural
+    network with hidden sigmoidal units and linear output
+    units. Multiple hidden layers can be defined and each
+    layer has a bias node.
+    """
 
-# Gradient descent parameters (I picked these by hand)
-epsilon = 0.01  # learning rate for gradient descent
-reg_lambda = 0.01  # regularization strength
+    def __init__(self, arch, b=0.1, beta=1, n_threads=1):
+        """Create a neural network.
 
+        Parameters
+        ----------
+        arch : list of integers
+            a list containing the number of neurons in each layer
+            including the input and output layers.
 
-# %% 7
-# Helper function to evaluate the total loss on the dataset
-def calculate_loss(model):
-    W1, b1, W2, b2 = model['W1'], model['b1'], model['W2'], model['b2']
-    # Forward propagation to calculate our predictions
-    z1 = X.dot(W1) + b1
-    a1 = np.tanh(z1)
-    z2 = a1.dot(W2) + b2
-    exp_scores = np.exp(z2)
-    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
-    # Calculating the loss
-    corect_logprobs = -np.log(probs[range(num_examples), y])
-    data_loss = np.sum(corect_logprobs)
-    # Add regulatization term to loss (optional)
-    data_loss += reg_lambda / 2 * (np.sum(np.square(W1)) + np.sum(np.square(W2)))
-    return 1. / num_examples * data_loss
+        b : float, default = 0.1
+            left/right limits of the uniform distribution from which
+            the intial values of the network weights are sampled.
 
+        beta : float, default = 1
+            steepness of the sigmoidal function in ``x=0``
 
-# %% 8
-# Helper function to predict an output (0 or 1)
-def predict(model, x):
-    W1, b1, W2, b2 = model['W1'], model['b1'], model['W2'], model['b2']
-    # Forward propagation
-    z1 = x.dot(W1) + b1
-    a1 = np.tanh(z1)
-    z2 = a1.dot(W2) + b2
-    exp_scores = np.exp(z2)
-    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
-    return np.argmax(probs, axis=1)
+        n_threads : int
+            the number of threads to use when computing some expression
+            with numexpr, if it is available on the system.
 
+        Attributes
+        ----------
+        arch : list of integers
+            a list containing the number of neurons in each layer
+            including the input and output layers.
 
-# %% 16
-# This function learns parameters for the neural network and returns the model.
-# - nn_hdim: Number of nodes in the hidden layer
-# - num_passes: Number of passes through the training data for gradient descent
-# - print_loss: If True, print the loss every 1000 iterations
-def build_model(nn_hdim, num_passes=20000, print_loss=False):
-    # Initialize the parameters to random values. We need to learn these.
-    np.random.seed(0)
-    W1 = np.random.randn(nn_input_dim, nn_hdim) / np.sqrt(nn_input_dim)
-    b1 = np.zeros((1, nn_hdim))
-    W2 = np.random.randn(nn_hdim, nn_output_dim) / np.sqrt(nn_hdim)
-    b2 = np.zeros((1, nn_output_dim))
+        n_layers : int
+            the number of layers, including input and output layers
 
-    # This is what we return at the end
-    model = {}
+        n_hidden : int
+            the number of hidden layers
 
-    # Gradient descent. For each batch...
-    for i in range(0, num_passes):
-
-        # Forward propagation
-        z1 = X.dot(W1) + b1
-        a1 = np.tanh(z1)
-        z2 = a1.dot(W2) + b2
-        exp_scores = np.exp(z2)
-        probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
-
-        # Backpropagation
-        delta3 = probs
-        delta3[range(num_examples), y] -= 1
-        dW2 = (a1.T).dot(delta3)
-        db2 = np.sum(delta3, axis=0, keepdims=True)
-        delta2 = delta3.dot(W2.T) * (1 - np.power(a1, 2))
-        dW1 = np.dot(X.T, delta2)
-        db1 = np.sum(delta2, axis=0)
-
-        # Add regularization terms (b1 and b2 don't have regularization terms)
-        dW2 += reg_lambda * W2
-        dW1 += reg_lambda * W1
-
-        # Gradient descent parameter update
-        W1 += -epsilon * dW1
-        b1 += -epsilon * db1
-        W2 += -epsilon * dW2
-        b2 += -epsilon * db2
-
-        # Assign new parameters to the model
-        model = {'W1': W1, 'b1': b1, 'W2': W2, 'b2': b2}
-
-        # Optionally print the loss.
-        # This is expensive because it uses the whole dataset, so we don't want to do it too often.
-        if print_loss and i % 1000 == 0:
-            print("Loss after iteration %i: %f" % (i, calculate_loss(model)))
-
-    return model
+        weights : list of np.ndarray
+            a list of weights. Each weight array has a shape so that
+            the feed-forward step can be performed by matrix
+            multiplication: e.g. if ``net.arch`` is ``[5, 10, 10, 1]``
+            then ``net.weights[0].shape`` is ``(10, 6)``, etc, ...
 
 
-if __name__ == '__main__':
-    # %% 17
-    # Build a model with a 3-dimensional hidden layer
-    model = build_model(3, print_loss=True)
+        Examples
+        --------
+        To define a network with 2 input units, 1 hidden layer
+        with 4 units and a single output unit give:
 
-    # Plot the decision boundary
-    plot_decision_boundary(lambda x: predict(model, x))
-    plt.title("Decision Boundary for hidden layer size 3")
 
-    # %% 14
-    plt.figure(figsize=(16, 32))
-    hidden_layer_dimensions = [1, 2, 3, 4, 5, 20, 50]
-    for i, nn_hdim in enumerate(hidden_layer_dimensions):
-        plt.subplot(5, 2, i + 1)
-        plt.title('Hidden Layer size %d' % nn_hdim)
-        model = build_model(nn_hdim)
-        plot_decision_boundary(lambda x: predict(model, x))
-    plt.show()
+        >>> import nn
+        >>> net = nn.MultiLayerPerceptron( arch=[2, 4, 1] )
+
+        Weights are initially set to small random values:
+
+        >>> net.weights
+        >>> [array([[ 0.78450808, -0.67768375,  0.54017801, -0.82977849,  0.03744147],
+            [-0.25655105,  1.26595283, -1.23658886, -0.02595137, -0.5636417 ],
+            [ 2.24445352, -0.6239078 , -1.51898104, -0.38226579,  0.78420179]]),
+            array([[ 0.04237318],
+            [-0.12053617],
+            [ 1.81033076],
+            [ 2.45879228],
+            [ 0.3647032 ],
+            [ 0.93829515]])]
+
+        Define some input data:
+
+        >>> y = np.array( [0,1] )
+
+        Compute network output:
+
+        >>> net.forward( y )
+
+        """
+        # set attributes
+        self.arch = arch
+        self.beta = beta
+        self.n_layers = len(arch)
+        self.n_hidden = len(arch) - 2
+        self._hidden = None
+
+        # set number of threads
+        if numexpr:
+            ne.set_num_threads(n_threads)
+
+        # a list of arrays containing the weight of each layer
+        # e.g. if arch = [ 2, 5, 1 ] then
+        # self.weights = [ shape(2+1, 5), shape(5+1, 1) ]
+        self.weights = []
+
+        # init the weigths to small values
+        for i in range(self.n_layers - 1):
+            size = arch[i] + 1, arch[i + 1]
+            self.weights.append(np.random.uniform(-b, b, size))
+
+    def save(self, filename):
+        """Save net to a file. The standard library cPickle module
+        is used to store the network.
+
+        Parameters
+        ----------
+        filename : str
+            the file name to which to save the network.
+        """
+        clone = copy.copy(self)
+        del clone._hidden
+        pickle.dump(clone, open(filename, 'wb'))
+
+    def _forward_train(self, dataset):
+        """Compute network output. This method is used only for training
+        the network and should prefereably not be used after training.
+        This methods does bookkeeping of the activation values of the nodes,
+        so that backprogation can work.
+
+
+        Parameters
+        ----------
+        inputs  :   np.ndarray
+            must be a two dimensions array with shape equal to
+            ``(n_samples, net.arch[0])``.
+
+        Returns
+        -------
+        output : np.ndarray
+            a two dimensions array with shape ``(n_samples, net.arch[-1])``
+        """
+
+        # check shape of the data
+        self._check_dataset(dataset)
+
+        # add biases values
+        hidden = self._myhstack((dataset.inputs, -np.ones((dataset.n_samples, 1))))
+
+        # keep track of the forward operations
+        self._hidden = [hidden]
+
+        # for each layer except the output, compute activation
+        #  adding the biases as necessary
+        for i in range(self.n_layers - 2):
+            hidden = np.dot(hidden, self.weights[i])
+            hidden = self._sigmoid(hidden, self.beta)
+            hidden = self._myhstack((hidden, -np.ones((hidden.shape[0], 1))))
+
+            self._hidden.append(hidden)
+
+        # compute output
+        return np.dot(hidden, self.weights[-1])
+
+    def forward(self, dataset):
+        """Compute network output.
+
+        Parameters
+        ----------
+        inputs  :   np.ndarray
+            must be a two dimensions array with shape equal to
+            ``(n_samples, net.arch[0])``.
+
+        Returns
+        -------
+        output : np.ndarray
+            a two dimensions array with shape ``(n_samples, net.arch[-1])``
+        """
+
+        # check shape of the data
+        self._check_dataset(dataset)
+
+        # add biases values
+        hidden = self._myhstack((dataset.inputs, -np.ones((dataset.n_samples, 1))))
+
+        # for each layer except the output, compute activation
+        #  adding the biases as necessary
+        for i in range(self.n_layers - 2):
+            hidden = np.dot(hidden, self.weights[i])
+            hidden = self._sigmoid(hidden, self.beta)
+            hidden = self._myhstack((hidden, -np.ones((hidden.shape[0], 1))))
+
+        # compute output
+        return np.dot(hidden, self.weights[-1])
+
+    def train_backprop(self, training_set, validation_set=None, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-6,
+                       verbose=True, k=0.01, max_ratio=0.9):
+        """Train the network using the back-propagation algorithm.
+
+        Training is performed in batch mode, i.e. all input samples are presented
+        to the network before an update of the weights is computed.
+
+        Training by back-propagation is slow, since it is a first order method;
+        don't expect too much.
+
+
+        Parameters
+        ----------
+        training_set : instance of :py:class:`nn.Dataset` class
+            the keep the inputs and the targets used to train the network
+
+        validation_set : instance of :py:class:`nn.Dataset` class
+            the set of inputs/targets used to  validate the network training.
+            If it is None, no validation is performed.
+
+        eta : float, default=0.5
+            the initial learning rate used in the training of the network.
+            The learning rate decreases over time, when fluctuations
+            occur in the mean square error  of the network.
+
+        alpha : float, default=0.5
+            the momentum constant of the momentum term in the backpropagation
+            algorithm. Must be between 0 and 1. If set to 0 no momentum
+            is used.
+
+        n_iterations : int, default=100
+            the number of epochs of the training. All the input samples
+            are presented to the network this number of times.
+
+        etol : float, default = 1e-6
+            training is stopped if difference between the error at successive
+            epochs is less than this value.
+
+        verbose : bool, default is True
+            whether to print some debugging information at each epoch.
+
+        k : float
+            a number defining the rate of change of the learning parameter ``eta``.
+            If the error is decreasing the learning parameter is increased
+            as``eta *= 1 + k/10``, if it is increasing the learning parameter
+            is decreased as ``eta /= 1 + k``.
+
+        max_ratio : float, default=0.9
+            the minimum ratio between the mean square errors of the training and
+            validation set allowed. If the ratio is less than this number the net
+            is not generalizing well, and training should is stopped.
+        """
+        # check shape of the data
+        self._check_dataset(training_set)
+        if validation_set:
+            self._check_dataset(validation_set)
+
+        # initialize deltas
+        deltas = [None] * (self.n_layers - 1)
+
+        # save errors at each iteration to plot convergence history
+        err_save = np.zeros(n_iterations + 1)
+        err_save[0] = self.error(training_set)
+
+        # save also error over the validation set, if needed
+        if validation_set:
+            err_val_save = np.zeros(n_iterations + 1)
+            err_val_save[0] = self.error(validation_set)
+
+        # initialize weights at previous step
+        d_weights_old = [np.zeros_like(w) for w in self.weights]
+
+        # repeat the training
+        for n in range(1, n_iterations + 1):
+
+            # compute output
+            o = self._forward_train(training_set)
+
+            # compute output delta term
+            deltas[-1] = (o - training_set.targets)
+
+            # calculate deltas, for each hidden unit
+            for i in range(self.n_hidden):
+                # j is an index which go backwards
+                j = -(i + 1)
+                deltas[j - 1] = self._hidden[j][:, :-1] * (1.0 - self._hidden[j][:, :-1]) * np.dot(deltas[j],
+                                                                                                   self.weights[j][
+                                                                                                   :-1].T)
+
+            # update weights
+            for i in range(self.n_layers - 1):
+                d_weights_old[i] = alpha * d_weights_old[i] + eta * np.dot(deltas[i].T,
+                                                                           self._hidden[i]).T / training_set.n_samples
+                self.weights[i] -= d_weights_old[i]
+
+            # save error
+            err_save[n] = self.error(training_set)
+            if validation_set:
+                err_val_save[n] = self.error(validation_set)
+
+            # break if we are close to the minimum
+            if np.abs(err_save[n] - err_save[n - 1]) < etol:
+                print("Minimum variation of error reached. Stopping training.")
+                break
+
+            # check error behaviour and change learning parameter
+            if err_save[n] > err_save[n - 1]:
+                eta /= 1 + k
+            else:
+                eta *= 1 + float(k) / 10
+
+            # compute if error is growing or decreasing
+            if err_save[n] > err_save[n - 1]:
+                err_tr_sign = '(+)'
+            elif err_save[n] <= err_save[n - 1]:
+                err_tr_sign = '(-)'
+            if validation_set:
+                if err_val_save[n] > err_val_save[n - 1]:
+                    err_val_sign = '(+)'
+                elif err_val_save[n] <= err_val_save[n - 1]:
+                    err_val_sign = '(-)'
+
+            # stop training if training error is decreasing too much
+            # with respect to the validation error
+            if validation_set:
+                if n > 1:
+                    # ratio  between errors of the two sets
+                    err_ratio = np.max(err_save[n - 1:n] / err_val_save[n - 1:n])
+                    if err_ratio < max_ratio:
+                        sys.stdout.write("\nStopping training to avoid overfitting\n")
+                        sys.stdout.flush()
+                        break
+                else:
+                    err_ratio = 1
+
+            # print state information
+            if validation_set:
+                sys.stdout.write('\b' * 79)
+                sys.stdout.write("Epoch %5d; MSE-tr = %6.6e%s; MSE-val = %6.6e%s; ratio=%.4f" % (
+                n, err_save[n], err_tr_sign, err_val_save[n], err_val_sign, err_ratio))
+            else:
+                sys.stdout.write('\b' * 68)
+                sys.stdout.write("Epoch %5d; MSE-tr = %6.6e%s" % (n, err_save[n], err_tr_sign))
+            sys.stdout.flush()
+
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+
+        return err_save
+
+    def train_quickprop(self, training_set, validation_set=None, n_iterations=100, mu=1.5, etol=1e-6,
+                        epochs_between_reports=1, max_ratio=0.9, n_before=5):
+        """Train the network using the quickprop algorithm.
+
+        Training is performed in batch mode, i.e. all input samples are presented
+        to the network before an update of the weights is computed.
+
+        Parameters
+        ----------
+        training_set : instance of :py:class:`nn.Dataset` class
+            the set of inputs/targets used to train the network
+
+        validation_set : instance of :py:class:`nn.Dataset` class
+            the set of inputs/targets used to  validate the network training.
+            If it is None, no validation is performed.
+
+        n_iterations : int, default=100
+            the number of epochs of the training. All the input samples
+            are presented to the network this number of times.
+
+        etol : float, default = 1e-6
+            training is stopped if difference between the error at successive
+            epochs is less than this value.
+
+        epoch_between_reports : int, default = 1
+            report error every # of epochs
+
+        max_ratio : float, default=0.9
+            the minimum ratio between the mean square errors of the training and
+            validation set allowed. If the ratio is less than this number the net
+            is not generalizing well, and training should is stopped.
+
+        References
+        ----------
+        [1] Neural Processing Letters 12: 159-169, 2000.
+        Globally Convergent Modification of the Quickprop Method
+        MICHAEL N. VRAHATIS, GEORGE D. MAGOULAS and VASSILIS P. PLAGIANAKOS
+
+        """
+
+        # check shape of the data
+        self._check_dataset(training_set)
+        if validation_set:
+            self._check_dataset(validation_set)
+
+        # initialize deltas list
+        deltas = [None] * (self.n_layers - 1)
+
+        # save errors at each iteration to plot convergence history
+        err_save = np.zeros(n_iterations + 1)
+        err_save[0] = self.error(training_set)
+
+        # save also error over the validation set, if needed
+        if validation_set:
+            err_val_save = np.zeros(n_iterations + 1)
+            err_val_save[0] = self.error(validation_set)
+
+        # initialize weights at previous step
+        d_weights_old = [np.zeros_like(w) for w in self.weights]
+        S_old = [np.zeros_like(w) for w in self.weights]
+
+        # repeat the training for a certain amount of epochs
+        for n in range(1, n_iterations + 1):
+
+            # compute output
+            o = self._forward_train(training_set)
+
+            # compute output delta term
+            deltas[-1] = (o - training_set.targets)
+
+            # calculate deltas, for each hidden unit
+            for i in range(self.n_hidden):
+                # j is an index which goes backwards
+                j = -(i + 1)
+                a = self._hidden[j][:, :-1]
+                b = np.dot(deltas[j], self.weights[j][:-1].T)
+                deltas[j - 1] = a * (1 - a) * b
+
+            for i in range(self.n_layers - 1):
+                # compute error derivative
+                S = np.dot(deltas[i].T, self._hidden[i]).T / training_set.n_samples
+
+                if n < 2:
+                    # perform conventional backpropagation at first interation to ignite quick propagation algorithm
+                    d_weights = 0.01 * S
+
+                else:
+                    # use quickprop algorithm
+                    d_weights = mu * S / np.abs(S_old[i] - S) * np.abs(d_weights_old[i])
+
+                    # check that we do not make a too large step
+                    d_weights = np.where(np.abs(d_weights) > np.abs(mu * d_weights_old[i]), mu * d_weights_old[i],
+                                         d_weights)
+
+                # update weights
+                self.weights[i] -= d_weights
+
+                # keep track of stuff at previous step
+                S_old[i] = S
+                d_weights_old[i] = d_weights
+
+            # if we have to make a report
+            if n % epochs_between_reports == 0 and n >= epochs_between_reports:
+
+                # compute error on the training set and on the validation set if available.
+                err_save[n] = self.error(training_set)
+                if validation_set:
+                    err_val_save[n] = self.error(validation_set)
+
+                # compute if errors on the set are growing or decreasing
+                if err_save[n] > err_save[n - 1]:
+                    err_tr_sign = '(+)'
+                elif err_save[n] <= err_save[n - 1]:
+                    err_tr_sign = '(-)'
+                else:
+                    err_tr_sign = '(.)'
+                if validation_set:
+                    if err_val_save[n] > err_val_save[n - 1]:
+                        err_val_sign = '(+)'
+                    elif err_val_save[n] <= err_val_save[n - 1]:
+                        err_val_sign = '(-)'
+
+                # stop training if training error is decreasing too much
+                # with respect to the validation error
+                if validation_set:
+                    err_ratio = err_save[n] / err_val_save[n]
+                    if n > n_before * epochs_between_reports:
+                        # ratio  between errors of the two sets
+                        if err_ratio < max_ratio:
+                            sys.stdout.write("\nMaximum error ratio reached. Stopping training to avoid overfitting\n")
+                            sys.stdout.flush()
+                            break
+                        if np.all(np.diff(err_val_save[n - n_before * epochs_between_reports:n]) >= 0):
+                            sys.stdout.write(
+                                "\nError on validation set has increased in the last %d epochs. Stopping training to avoid overfitting\n" % n_before)
+                            sys.stdout.flush()
+                            break
+
+                # print state information
+                if validation_set:
+                    sys.stdout.write('\b' * 79)
+                    sys.stdout.write("Epoch %5d; MSE-tr = %6.6e%s; MSE-val = %6.6e%s; ratio=%.4f" % (
+                    n, err_save[n], err_tr_sign, err_val_save[n], err_val_sign, err_ratio))
+                else:
+                    sys.stdout.write('\b' * 68)
+                    sys.stdout.write("Epoch %5d; MSE-tr = %6.6e%s" % (n, err_save[n], err_tr_sign))
+                sys.stdout.flush()
+
+                # break if we are close to the minimum
+                if np.abs(err_save[n] - err_save[n - 1]) < etol:
+                    print("Minimum variation of error reached. Stopping training.")
+                    break
+
+
+            else:
+                err_save[n] = err_save[n - 1]
+                if validation_set:
+                    err_val_save[n] = err_val_save[n - 1]
+
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+
+        if validation_set:
+            return err_save[:n], err_val_save[:n]
+        else:
+            return err_save[:n]
+
+    def _check_dataset(self, dataset):
+        """Check that the dataset is consistent with respect
+        to the  network architecture."""
+        if not isinstance(dataset, Dataset):
+            raise ValueError('wrong training_set or validation_set are not instances of the nn.Dataset class')
+
+        if dataset.inputs.shape[1] != self.arch[0]:
+            raise ValueError('dataset inputs shape is inconsistent with number of network input nodes.')
+
+        if dataset.targets.shape[1] != self.arch[-1]:
+            raise ValueError('dataset targets shape is inconsistent with number of network output nodes.')
+
+    def error(self, dataset):
+        """Compute the sum of squared error of the network.
+
+        The error of a network with :math:`n` output units, when
+        given :math:`N` training samples, is defined as:
+
+        .. math ::
+        E = \\frac{1}{N} \\sum_i=1^N \sum_j=1^n ( o_j - t_j )^2
+
+        Parameters
+        ----------
+        dataset : instance of :py:class:`nn.Dataset`
+
+        Returns
+        -------
+        e : float
+            the mean square error of the network
+        """
+        return np.mean((self.forward(dataset) - dataset.targets) ** 2)
+
+    @staticmethod
+    def _myhstack(arrs):
+        """Stack two arrays side by side"""
+        a, b = arrs
+        c = np.empty((a.shape[0], a.shape[1] + b.shape[1]))
+        c[:, :a.shape[1]] = a
+        c[:, a.shape[1]:] = b
+        return c
+
+    @staticmethod
+    def _sigmoid(x, beta=1):
+        """Sigmoid activation function.
+
+        The sigmoid activation function :math:`\\sigma(x)`  is defined as:
+
+        .. math::
+           \\sigma(x) = \\frac{1}{ 1+ \\exp( -\\beta x )}
+
+        Parameters
+        ----------
+
+        x : float
+
+        beta : float, default=1
+            a parameter determining the steepness of the curve in :math:`x=0`
+
+        Returns
+        -------
+        s : float
+            the value of the activation function
+        """
+        if numexpr:
+            return ne.evaluate("1.0 / ( 1 + exp(-beta*x))")
+        else:
+            return 1.0 / (1 + np.exp(-beta * x))
+
+
+def load_net_from_file(filename):
+    """Load net from a file."""
+    return pickle.load(open(filename, 'rb'))
