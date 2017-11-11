@@ -32,7 +32,7 @@ class Dataset(object):
         self.n_samples = self.inputs.shape[0]
         self.n_features = self.inputs.shape[1]
 
-    def split(self, fractions=[0.5, 0.5]):
+    def split(self, fractions=[0.8, 0.2]):
         """Split randomly the dataset into smaller dataset.
         Parameters
         ----------
@@ -125,10 +125,10 @@ class MultilayerNN():
             self._hidden.append(hidden)
 
         # using softmax on last layer
-        hidden = np.dot(hidden, self.weights[-1])
-        hidden = self._softmax(hidden)
+        output = np.dot(hidden, self.weights[-1])
+        output= self._softmax(hidden)
 
-        return hidden
+        return output
 
     # for testing
     def predict(self, dataset):
@@ -145,10 +145,10 @@ class MultilayerNN():
             hidden = np.concatenate((hidden, np.ones(dataset.n_samples)), axis=1)
 
         # using softmax on last layer
-        hidden = np.dot(hidden, self.weights[-1])
-        hidden = self._softmax(hidden)
+        output = np.dot(hidden, self.weights[-1])
+        output = self._softmax(hidden)
 
-        return hidden
+        return output
 
     def backprop(self, training_set, validation_set, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-6,
                        verbose=True, k=0.01, max_ratio=0.9):
@@ -212,17 +212,6 @@ class MultilayerNN():
                 eta *= 1 + float(k) / 10
 
         return train_err
-
-
-
-
-
-
-
-
-
-
-
 
     def _check_dataset(self, dataset):
         """Check that the dataset is consistent with respect
