@@ -128,6 +128,6 @@ if __name__ == '__main__':
     parameter_grid = zip(p.filename, p.blur_function)
     map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
     map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
-    pipeline("training_data")
+    pipeline()
 
 
