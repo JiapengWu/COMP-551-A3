@@ -1,6 +1,6 @@
 import numpy   as np
 #import scipy.misc  # to visualize only
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 import linecache
 import parameter as p
 from scipy import ndimage
