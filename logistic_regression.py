@@ -5,7 +5,7 @@ import csv
 
 
 def load_x():
-	path = "../data/training_data.npy"
+	path = "./data/training_data.npy"
 	training_data_x = np.load(path)
 	training_data_x = training_data_x.reshape(50000, 64*64)
 
@@ -15,14 +15,14 @@ def load_x():
 
 
 def load_y():
-    path = "../data/train_y.csv"
+    path = "./data/train_y.csv"
     training_data_y = np.loadtxt(path, delimiter="\n")
     print training_data_y.shape
     return training_data_y
 
 
 def load_test():
-	path = "../data/test_data.npy"
+	path = "./data/test_data.npy"
 	test_data_x = np.load(path)
 	test_data_x = test_data_x.reshape(10000, 64*64)
 
@@ -41,3 +41,6 @@ def main():
         writer.writerow(('Id', 'Label'))
         for i in range(1, len(prediction) + 1):
             writer.writerow((i, prediction[i - 1]))
+
+
+main()
