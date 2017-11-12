@@ -126,7 +126,7 @@ class MultilayerNN():
 
         # using softmax on last layer
         output = np.dot(hidden, self.weights[-1])
-        output= self._softmax(hidden)
+        output= self._softmax(output)
 
         return output
 
@@ -146,7 +146,7 @@ class MultilayerNN():
 
         # using softmax on last layer
         output = np.dot(hidden, self.weights[-1])
-        output = self._softmax(hidden)
+        output = self._softmax(output)
 
         return output
 
@@ -233,9 +233,13 @@ class MultilayerNN():
             return 1.0 / (1 + np.exp(-x))
 
 
-    def _softmax(self,dataset):
+    def _softmax(self,z):
+        assert len(z.shape) == 40
+        s = np.max(z, axis=1)
+        s = s[:, np.newaxis]  # necessary step to do broadcasting
+        e_x = np.exp(z - s)
+        div = np.sum(e_x, axis=1)
+        div = div[:, np.newaxis]  # dito
+        return e_x / div
 
-
-    #calculate loss function using cross-entropy
-    def error(self, dataset):
 

@@ -1,10 +1,9 @@
 import numpy   as np
 #import scipy.misc  # to visualize only
-#from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import linecache
 import parameter as p
-from copy import deepcopy
-#from scipy import ndimage
+from scipy import ndimage
 
 
 # load a single image from either training or test dataset, index specified by n
@@ -68,6 +67,7 @@ def filter(x, func, param):
     return y
 
 
+
 # show two given sets of images
 def compare_results(x1, x2, single=False):
     if single:
@@ -87,47 +87,47 @@ def compare_results(x1, x2, single=False):
 
 # this function shall be only called when adopting a different blur function or parameter
 # than the one used last time
-def pipeline():
-    path = "../data/preprocessed_samples/Training_X_"
-    result = []
-    for i in range(500):
-        x = load_sample_images(i + 1)
-        blurred_x = filter(x, p.blur_function, p.blur_parameter)
-        y = binarization(blurred_x, p.thresh_hold)
-        result.append(np.copy(y))
-    training_data = np.array(result)
-    np.save("../data/training_data", training_data)
+def pipeline(filename, blur_function=None, blur_parameter=None):
+    training_data = np.ones((100, 64, 64))
+    # default : do nothing, stores data only
+    if blur_function is None:
+        for i in range(500):
+            x = load_sample_images(i + 1)
+            if i == 0:
+                training_data = x
+            else:
+                training_data = np.concatenate((training_data, x))
+    else:
+        for i in range(500):
+            x = load_sample_images(i + 1)
+            blurred_x = filter(x, blur_function, blur_parameter)
+            y = binarization(blurred_x, p.thresh_hold)
+            if i == 0:
+                training_data = y
+            else:
+                training_data = np.concatenate((training_data, y))
+    np.save("../data/training_data_" + filename, training_data)
     return training_data
 
 
-def preprocess_test():
+def preprocess_test(filename, blur_function=None, blur_parameter=None):
     x = np.loadtxt('../data/test_x.csv', delimiter=",")  # load from text
     x = x.reshape(-1, 64, 64)  # reshape
-    test_data = np.array([binarization(filter(x[i], p.blur_function, p.blur_parameter), p.thresh_hold) for i in range(x.shape[0])])
-    np.save("../data/test_data", test_data)
+    if blur_function is None:
+        test_data = x
+    else:
+        test_data = np.array(
+            [binarization(filter(x[i], blur_function, blur_parameter), p.thresh_hold) for i in range(x.shape[0])])
+
+    np.save("../data/test_data_" + filename, test_data)
     return test_data
 
 
 if __name__ == '__main__':
-    # partition_trainin_set(100)
-    # show_test(2)
-    x = load_sample_images(8)
-    blurred_x1 = filter(x, ndimage.median_filter, 2)
-
-    blurred_x2 = filter(x, ndimage.maximum_filter, 2)
-    # compare_results(x, blurred_x)
-
-    y1 = binarization(blurred_x2, p.thresh_hold)
-    y2 = binarization(blurred_x1, p.thresh_hold)
-    compare_results(y1, y2)
-
-    # open_square = ndimage.binary_opening(y)
-    # eroded_square = ndimage.binary_erosion(y)
-    # reconstruction = ndimage.binary_propagation(eroded_square, mask=y)
-    # compare_results(y, reconstruction)
-
-    # training_data = pipeline()
-    # test_data = preprocess_test()
-    # print test_data.shape
+    partition_trainin_set()
+    parameter_grid = zip(p.filename, p.blur_function)
+    map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
+    map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
+    pipeline("training_data")
 
 
