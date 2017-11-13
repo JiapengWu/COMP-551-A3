@@ -5,7 +5,7 @@ import csv
 
 
 def load_x():
-	path = "./data/training_data.npy"
+	path = "./data/training_data_maximum.npy"
 	training_data_x = np.load(path)
 	training_data_x = training_data_x.reshape(50000, 64*64)
 
@@ -22,7 +22,7 @@ def load_y():
 
 
 def load_test():
-	path = "./data/test_data.npy"
+	path = "./data/test_data_maximum.npy"
 	test_data_x = np.load(path)
 	test_data_x = test_data_x.reshape(10000, 64*64)
 
@@ -31,11 +31,12 @@ def load_test():
 	return test_data_x
 
 
-
 def main():
+
     clf = LogisticRegression()
     clf.fit(load_x(), load_y())
-    prediction = clf.predict(load_test())
+    prediction = clf.predict(load_test()).astype(int)
+
     with open("logistic_regression.csv", 'w') as f:
         writer = csv.writer(f)
         writer.writerow(('Id', 'Label'))
