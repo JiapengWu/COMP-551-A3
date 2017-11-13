@@ -87,7 +87,7 @@ def compare_results(x1, x2, single=False):
 
 # this function shall be only called when adopting a different blur function or parameter
 # than the one used last time
-def pipeline(filename, blur_function=None, blur_parameter=None):
+def pipeline(filename='', blur_function=None, blur_parameter=None):
     training_data = np.ones((100, 64, 64))
     # default : do nothing, stores data only
     if blur_function is None:
@@ -125,9 +125,9 @@ def preprocess_test(filename='', blur_function=None, blur_parameter=None):
 
 
 if __name__ == '__main__':
-    parameter_grid = zip(p.filename, p.blur_function)
-    map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
-    map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
-    pipeline()
+    # parameter_grid = zip(p.filename, p.blur_function)
+    # map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
+    # map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
+    # pipeline()
     preprocess_test()
 
