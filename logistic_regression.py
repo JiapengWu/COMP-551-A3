@@ -17,7 +17,7 @@ def load_x():
 def load_y():
     path = "./data/train_y.csv"
     training_data_y = np.loadtxt(path, delimiter="\n")
-    print training_data_y.shape
+    print training_data_y
     return training_data_y
 
 
@@ -36,7 +36,7 @@ def main():
     clf = LogisticRegression()
     clf.fit(load_x(), load_y())
     prediction = clf.predict(load_test())
-    with open("logistic_regression", 'w') as f:
+    with open("logistic_regression.csv", 'w') as f:
         writer = csv.writer(f)
         writer.writerow(('Id', 'Label'))
         for i in range(1, len(prediction) + 1):

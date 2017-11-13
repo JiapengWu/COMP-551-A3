@@ -15,10 +15,10 @@ class Dataset(object):
     def __init__(self, inputs, targets):
 
         # Check that the dataset is consistent
-        if not inputs.ndim == 4096:
+        if not inputs.shape[1] == 4096:
             raise ValueError('inputs should be a 4096 dimensions array.')
 
-        if not targets.ndim == 40:
+        if not targets.shape[1] == 40:
             raise ValueError('targets should be a 40 dimensions array.')
 
         if inputs.shape[0] != targets.shape[0]:
@@ -112,16 +112,16 @@ class MultilayerNN():
 
         self._check_dataset(dataset)
 
-        hidden = np.concatenate((dataset, np.ones(dataset.n_samples)), axis = 1)
+        hidden = np.column_stack([dataset.inputs, np.ones((dataset.n_samples, 1))])
         self._hidden = [hidden]
         # for all the layers excluding the output layer
         for i in range(self.n_layers - 2):
             # compute the i+1-th hidden layer
             hidden = np.dot(hidden, self.weights[i])
             # apply sigmoid function
-            hidden = self._sigmoid(hidden, self.beta)
+            hidden = self._sigmoid(hidden)
             # add bias column
-            hidden = np.concatenate((hidden, np.ones(dataset.n_samples)), axis=1)
+            hidden = np.column_stack([hidden, np.ones((dataset.n_samples, 1))])
             self._hidden.append(hidden)
 
         # using softmax on last layer
@@ -130,25 +130,44 @@ class MultilayerNN():
 
         return output
 
+
     # for testing
     def predict(self, dataset):
-        self._check_dataset(dataset)
-
-        hidden = np.concatenate((dataset, np.ones(dataset.n_samples)), axis=1)
+        hidden = np.column_stack([dataset.inputs, np.ones((dataset.n_samples, 1))])
         # for all the layers excluding the output layer
         for i in range(self.n_layers - 2):
             # compute the i+1-th hidden layer
             hidden = np.dot(hidden, self.weights[i])
             # apply sigmoid function
-            hidden = self._sigmoid(hidden, self.beta)
+            hidden = self._sigmoid(hidden)
             # add bias column
-            hidden = np.concatenate((hidden, np.ones(dataset.n_samples)), axis=1)
+            hidden = np.column_stack([hidden, np.ones((dataset.n_samples, 1))])
 
         # using softmax on last layer
         output = np.dot(hidden, self.weights[-1])
         output = self._softmax(output)
-
         return output
+
+
+    def _predict(self, dataset):
+        self._check_dataset(dataset)
+        print dataset.inputs.shape
+        print dataset.n_samples
+        hidden = np.column_stack([dataset.inputs, np.ones((dataset.n_samples, 1))])
+        # for all the layers excluding the output layer
+        for i in range(self.n_layers - 2):
+            # compute the i+1-th hidden layer
+            hidden = np.dot(hidden, self.weights[i])
+            # apply sigmoid function
+            hidden = self._sigmoid(hidden)
+            # add bias column
+            hidden = np.column_stack([hidden, np.ones((dataset.n_samples, 1))])
+
+        # using softmax on last layer
+        output = np.dot(hidden, self.weights[-1])
+        output = self._softmax(output)
+        return output
+
 
     def backprop(self, training_set, validation_set, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-6,
                        verbose=True, k=0.01, max_ratio=0.9):
@@ -200,6 +219,8 @@ class MultilayerNN():
             if validation_set:
                 val_err[n] = self.error(validation_set)
 
+            print "{}-th layer, training error: {}, validation error: {}".format(
+                                                        str(n), str(train_err[n]. str(val_err)))
             #stop training when we are close to minimum
             if np.abs(train_err[n] - train_err[n-1]) < etol:
                 print("Already got the minumum error")
@@ -226,15 +247,15 @@ class MultilayerNN():
             raise ValueError('dataset targets shape is inconsistent with number of network output nodes.')
 
     @staticmethod
-    def _sigmoid(self, x):
+    def _sigmoid(x):
         if numexpr:
             return ne.evaluate("1.0 / ( 1 + exp(-x))")
         else:
             return 1.0 / (1 + np.exp(-x))
 
-
-    def _softmax(self,z):
-        assert len(z.shape) == 40
+    @staticmethod
+    def _softmax(z):
+        assert len(z.shape) == 2
         s = np.max(z, axis=1)
         s = s[:, np.newaxis]  # necessary step to do broadcasting
         e_x = np.exp(z - s)
@@ -242,4 +263,5 @@ class MultilayerNN():
         div = div[:, np.newaxis]  # dito
         return e_x / div
 
-
+    def error(self, dataset):
+        return np.mean((self._predict(dataset) - dataset.targets) ** 2)

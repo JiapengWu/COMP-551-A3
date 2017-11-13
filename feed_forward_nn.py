@@ -49,7 +49,7 @@ class Dataset(object):
         self.n_samples = self.inputs.shape[0]
         self.n_inputs = self.inputs.shape[1]
 
-    def split(self, fractions=[0.5, 0.5]):
+    def split(self, fractions=[0.8, 0.2]):
         """Split randomly the dataset into smaller dataset.
 
         Parameters
@@ -660,6 +660,7 @@ class MultiLayerPerceptron():
             return ne.evaluate("1.0 / ( 1 + exp(-beta*x))")
         else:
             return 1.0 / (1 + np.exp(-beta * x))
+
 
 
 def load_net_from_file(filename):
