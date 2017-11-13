@@ -97,6 +97,7 @@ def pipeline(filename, blur_function=None, blur_parameter=None):
                 training_data = x
             else:
                 training_data = np.concatenate((training_data, x))
+        np.save("../data/training_data", training_data)
     else:
         for i in range(500):
             x = load_sample_images(i + 1)
@@ -106,7 +107,7 @@ def pipeline(filename, blur_function=None, blur_parameter=None):
                 training_data = y
             else:
                 training_data = np.concatenate((training_data, y))
-    np.save("../data/training_data_" + filename, training_data)
+        np.save("../data/training_data_" + filename, training_data)
     return training_data
 
 
@@ -114,20 +115,19 @@ def preprocess_test(filename, blur_function=None, blur_parameter=None):
     x = np.loadtxt('../data/test_x.csv', delimiter=",")  # load from text
     x = x.reshape(-1, 64, 64)  # reshape
     if blur_function is None:
-        test_data = x
+        np.save("../data/test_data", x)
     else:
         test_data = np.array(
             [binarization(filter(x[i], blur_function, blur_parameter), p.thresh_hold) for i in range(x.shape[0])])
 
-    np.save("../data/test_data_" + filename, test_data)
+        np.save("../data/test_data_" + filename, test_data)
     return test_data
 
 
 if __name__ == '__main__':
-    # parameter_grid = zip(p.filename, p.blur_function)
-    # map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
-    # map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
-    preprocess_test("maximum", ndimage.maximum_filter, 2)
-    # pipeline()
-
+    parameter_grid = zip(p.filename, p.blur_function)
+    map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
+    map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
+    pipeline()
+    preprocess_test()
 
