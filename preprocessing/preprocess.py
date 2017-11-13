@@ -111,7 +111,7 @@ def pipeline(filename, blur_function=None, blur_parameter=None):
     return training_data
 
 
-def preprocess_test(filename, blur_function=None, blur_parameter=None):
+def preprocess_test(filename='', blur_function=None, blur_parameter=None):
     x = np.loadtxt('../data/test_x.csv', delimiter=",")  # load from text
     x = x.reshape(-1, 64, 64)  # reshape
     if blur_function is None:
