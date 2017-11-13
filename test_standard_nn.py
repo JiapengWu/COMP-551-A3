@@ -1,4 +1,4 @@
-from feed_f_nn import Dataset, MultilayerNN
+from feed_forward_nn import Dataset, MultiLayerPerceptron
 import numpy as np
 from sklearn import preprocessing
 from keras.utils import np_utils
@@ -50,8 +50,8 @@ def main():
 	training_y = load_y()
 	dataset = Dataset(training_x, training_y)
 	training, validation = dataset.split()
-	nn = MultilayerNN([4096, 50, 40])
-	nn.backprop(training, validation)
+	nn = MultiLayerPerceptron([4096, 50, 40])
+	nn.train_backprop(training, validation)
 	test_x = load_test()
 	prediction = nn.predict(test_x).astype(int)
 	with open("feed_forward_nn.csv", 'w') as f:

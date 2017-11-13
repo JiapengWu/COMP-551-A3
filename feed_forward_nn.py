@@ -243,7 +243,27 @@ class MultiLayerPerceptron():
             self._hidden.append(hidden)
 
         # compute output
-        return np.dot(hidden, self.weights[-1])
+        return self._softmax(np.dot(hidden, self.weights[-1]))
+
+
+    def predict(self, dataset):
+        hidden = np.column_stack([dataset, np.ones((dataset.shape[0], 1))])
+        # for all the layers excluding the output layer
+        for i in range(self.n_layers - 2):
+            # compute the i+1-th hidden layer
+            hidden = np.dot(hidden, self.weights[i])
+            # apply sigmoid function
+            hidden = self._sigmoid(hidden)
+            # add bias column
+            hidden = np.column_stack([hidden, -np.ones((dataset.shape[0], 1))])
+
+        # using softmax on last layer
+        output = np.dot(hidden, self.weights[-1])
+        output = self._softmax(output)
+        output = output.argmax(axis=1)
+        print output
+        return output
+
 
     def forward(self, dataset):
         """Compute network output.
@@ -274,7 +294,7 @@ class MultiLayerPerceptron():
             hidden = self._myhstack((hidden, -np.ones((hidden.shape[0], 1))))
 
         # compute output
-        return np.dot(hidden, self.weights[-1])
+        return self._softmax(np.dot(hidden, self.weights[-1]))
 
     def train_backprop(self, training_set, validation_set=None, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-6,
                        verbose=True, k=0.01, max_ratio=0.9):
@@ -623,6 +643,8 @@ class MultiLayerPerceptron():
         e : float
             the mean square error of the network
         """
+        prediction = self.forward(dataset)
+        print "Accuracy: " + str(np.mean(prediction.argmax(axis=1) == dataset.targets.argmax(axis=1)))
         return np.mean((self.forward(dataset) - dataset.targets) ** 2)
 
     @staticmethod
@@ -662,6 +684,15 @@ class MultiLayerPerceptron():
             return 1.0 / (1 + np.exp(-beta * x))
 
 
+    @staticmethod
+    def _softmax(z):
+        assert len(z.shape) == 2
+        s = np.max(z, axis=1)
+        s = s[:, np.newaxis]  # necessary step to do broadcasting
+        e_x = np.exp(z - s)
+        div = np.sum(e_x, axis=1)
+        div = div[:, np.newaxis]  # dito
+        return e_x / div
 
 def load_net_from_file(filename):
     """Load net from a file."""

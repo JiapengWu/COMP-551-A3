@@ -1,6 +1,6 @@
 import numpy   as np
 #import scipy.misc  # to visualize only
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import linecache
 import parameter as p
 from scipy import ndimage
@@ -124,10 +124,10 @@ def preprocess_test(filename, blur_function=None, blur_parameter=None):
 
 
 if __name__ == '__main__':
-    partition_trainin_set()
-    parameter_grid = zip(p.filename, p.blur_function)
-    map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
-    map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
-    pipeline()
+    # parameter_grid = zip(p.filename, p.blur_function)
+    # map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
+    # map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
+    preprocess_test("maximum", ndimage.maximum_filter, 2)
+    # pipeline()
 
 

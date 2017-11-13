@@ -121,7 +121,7 @@ class MultilayerNN():
             # apply sigmoid function
             hidden = self._sigmoid(hidden)
             # add bias column
-            hidden = np.column_stack([hidden, np.ones((dataset.n_samples, 1))])
+            hidden = np.column_stack([hidden, -np.ones((dataset.n_samples, 1))])
             self._hidden.append(hidden)
 
         # using softmax on last layer
@@ -133,7 +133,7 @@ class MultilayerNN():
 
     # for testing
     def predict(self, dataset):
-        hidden = np.column_stack([dataset.inputs, np.ones((dataset.n_samples, 1))])
+        hidden = np.column_stack([dataset, np.ones((dataset.shape[0], 1))])
         # for all the layers excluding the output layer
         for i in range(self.n_layers - 2):
             # compute the i+1-th hidden layer
@@ -141,18 +141,18 @@ class MultilayerNN():
             # apply sigmoid function
             hidden = self._sigmoid(hidden)
             # add bias column
-            hidden = np.column_stack([hidden, np.ones((dataset.n_samples, 1))])
+            hidden = np.column_stack([hidden, -np.ones((dataset.shape[0], 1))])
 
         # using softmax on last layer
         output = np.dot(hidden, self.weights[-1])
         output = self._softmax(output)
+        output = output.argmax(axis=1)
+        print output
         return output
 
 
     def _predict(self, dataset):
         self._check_dataset(dataset)
-        print dataset.inputs.shape
-        print dataset.n_samples
         hidden = np.column_stack([dataset.inputs, np.ones((dataset.n_samples, 1))])
         # for all the layers excluding the output layer
         for i in range(self.n_layers - 2):
@@ -161,7 +161,7 @@ class MultilayerNN():
             # apply sigmoid function
             hidden = self._sigmoid(hidden)
             # add bias column
-            hidden = np.column_stack([hidden, np.ones((dataset.n_samples, 1))])
+            hidden = np.column_stack([hidden, -np.ones((dataset.n_samples, 1))])
 
         # using softmax on last layer
         output = np.dot(hidden, self.weights[-1])
@@ -169,7 +169,7 @@ class MultilayerNN():
         return output
 
 
-    def backprop(self, training_set, validation_set, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-6,
+    def backprop(self, training_set, validation_set, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-10,
                        verbose=True, k=0.01, max_ratio=0.9):
         """train the network using backpropagation
 
@@ -218,9 +218,10 @@ class MultilayerNN():
             train_err[n] = self.error(training_set)
             if validation_set:
                 val_err[n] = self.error(validation_set)
+                print
 
-            print "{}-th layer, training error: {}, validation error: {}".format(
-                                                        str(n), str(train_err[n]. str(val_err)))
+            print "{}-th epoch, training error: {}, validation error: {}".format(
+                                                        str(n), str(train_err[n]), str(val_err[n]))
             #stop training when we are close to minimum
             if np.abs(train_err[n] - train_err[n-1]) < etol:
                 print("Already got the minumum error")
@@ -264,4 +265,6 @@ class MultilayerNN():
         return e_x / div
 
     def error(self, dataset):
-        return np.mean((self._predict(dataset) - dataset.targets) ** 2)
+        prediction = self._predict(dataset)
+        print "Accuracy: " + str(np.mean(prediction.argmax(axis=1) == dataset.targets.argmax(axis=1)))
+        return np.mean((prediction - dataset.targets) ** 2)
