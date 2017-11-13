@@ -115,6 +115,7 @@ def preprocess_test(filename='', blur_function=None, blur_parameter=None):
     x = np.loadtxt('../data/test_x.csv', delimiter=",")  # load from text
     x = x.reshape(-1, 64, 64)  # reshape
     if blur_function is None:
+        test_data = x
         np.save("../data/test_data", x)
     else:
         test_data = np.array(
