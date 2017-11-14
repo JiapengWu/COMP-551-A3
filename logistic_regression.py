@@ -31,12 +31,10 @@ def load_test():
 
 
 def main():
-    print load_test().shape
     clf = LogisticRegression()
     clf.fit(load_x(), load_y())
 
     prediction = clf.predict(load_test())
-    print prediction
 
 
     with open("logistic_regression.csv", 'w') as f:

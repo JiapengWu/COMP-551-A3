@@ -129,14 +129,14 @@ def preprocess_test(filename='', blur_function=None, blur_parameter=None):
 
 
 if __name__ == '__main__':
-    x = load_single_image()
-    show_images(x)
-    x1 = filter_single(x, p.blur_parameter[0], p.blur_parameter)
-    x2 = filter_single(x, p.blur_parameter[1], p.blur_parameter)
-    compare_results(x1, x2)
-    # parameter_grid = zip(p.filename, p.blur_function)
-    # map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
-    # map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
-    # pipeline()
-    # preprocess_test()
+    # splitting dataset two 500 partitions, each containing 100 image data
+    partition_trainin_set()
+    # defining parameters
+    parameter_grid = zip(p.filename, p.blur_function)
+    # generating preprocessed training data and testing data
+    map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
+    map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
+    # generating unpreprocessed training data and testing data
+    pipeline()
+    preprocess_test()
 
