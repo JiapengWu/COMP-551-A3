@@ -1,9 +1,8 @@
 import numpy   as np
 #import scipy.misc  # to visualize only
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 import linecache
 import parameter as p
-from scipy import ndimage
 
 
 # load a single image from either training or test dataset, index specified by n
@@ -97,7 +96,7 @@ def pipeline(filename='', blur_function=None, blur_parameter=None):
                 training_data = x
             else:
                 training_data = np.concatenate((training_data, x))
-        np.save("../data/training_data", training_data)
+        np.save("../data/training_data", training_data).astype(int)
     else:
         for i in range(500):
             x = load_sample_images(i + 1)
@@ -107,7 +106,7 @@ def pipeline(filename='', blur_function=None, blur_parameter=None):
                 training_data = y
             else:
                 training_data = np.concatenate((training_data, y))
-        np.save("../data/training_data_" + filename, training_data)
+        np.save("../data/training_data_" + filename, training_data).astype(int)
     return training_data
 
 
@@ -116,19 +115,24 @@ def preprocess_test(filename='', blur_function=None, blur_parameter=None):
     x = x.reshape(-1, 64, 64)  # reshape
     if blur_function is None:
         test_data = x
-        np.save("../data/test_data", x)
+        np.save("../data/test_data", test_data).astype(int)
     else:
         test_data = np.array(
             [binarization(filter(x[i], blur_function, blur_parameter), p.thresh_hold) for i in range(x.shape[0])])
 
-        np.save("../data/test_data_" + filename, test_data)
+        np.save("../data/test_data_" + filename, test_data).astype(int)
     return test_data
 
 
 if __name__ == '__main__':
-    parameter_grid = zip(p.filename, p.blur_function)
-    map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
-    map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
-    pipeline()
-    preprocess_test()
+    x = load_single_image()
+    show_images(x)
+    x1 = filter(x, p.blur_parameter[0], p.blur_parameter)
+    x2 = filter(x, p.blur_parameter[1], p.blur_parameter)
+    compare_results(x1, x2)
+    # parameter_grid = zip(p.filename, p.blur_function)
+    # map(lambda x: pipeline(x[0], x[1], p.blur_parameter), parameter_grid)
+    # map(lambda x: preprocess_test(x[0], x[1], p.blur_parameter), parameter_grid)
+    # pipeline()
+    # preprocess_test()
 
