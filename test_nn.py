@@ -50,7 +50,7 @@ def main():
 	training_y = load_y()
 	dataset = Dataset(training_x, training_y)
 	training, validation = dataset.split()
-	nn = MultilayerNN([4096, 50, 40])
+	nn = MultilayerNN([4096, 50, 100, 100, 40])
 	nn.backprop(training, validation)
 	test_x = load_test()
 	prediction = nn.predict(test_x).astype(int)

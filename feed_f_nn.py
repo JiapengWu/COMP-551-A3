@@ -34,17 +34,13 @@ class Dataset(object):
 
     def split(self, fractions=[0.8, 0.2]):
         """Split randomly the dataset into smaller dataset.
-        Parameters
-        ----------
         fraction: list of floats, default = [0.5, 0.5]
             the dataset is split into ``len(fraction)`` smaller
             dataset, and the ``i``-th dataset has a size
             which is ``fraction[i]`` of the original dataset.
             Note that ``sum(fraction)`` can also be smaller than one
             but not greater.
-        Returns
-        -------
-        subsets: list of :py:class:`nn.Dataset`
+        return subsets: list of :py:class:`nn.Dataset`
             a list of the subsets of the original datasets
         """
 
@@ -68,9 +64,6 @@ class Dataset(object):
                 Dataset(self.inputs[idx[limits[i]:limits[i + 1]]], self.targets[idx[limits[i]:limits[i + 1]]]))
 
         return subsets
-
-    def __len__(self):
-        return len(self.inputs)
 
 
 class MultilayerNN():
@@ -99,12 +92,6 @@ class MultilayerNN():
         for i in range(self.n_layers - 1):
             size = (arch[i] + 1 ,arch[i+1])
             self.weights.append(np.random.normal(0, var, size))
-
-    def save(self, filename):
-        clone = copy.copy(self)
-        del clone._hidden
-        pickle.dump(clone, open(filename, 'wb'))
-
 
     # for training
     def _forward(self, dataset):
@@ -170,15 +157,15 @@ class MultilayerNN():
 
 
     def backprop(self, training_set, validation_set, eta=0.5, alpha=0.5, n_iterations=100, etol=1e-10,
-                       verbose=True, k=0.01, max_ratio=0.9):
-        """train the network using backpropagation
+                       k=0.01):
+        # train the network using backpropagation
+        #
+        #     eta: initial learning rate
+        #     alpha: momentum term
+        #     n_iterations:the number of epochs
+        #     etol: threshold of the error
+        #     k: define how to change learning rate
 
-            eta: initial learning rate
-            alpha: momentum term
-            n_iterations:the number of epochs
-            etol: threshold of the error
-            k: define how to change learning rate
-        """
         # check datasets:
         self._check_dataset(training_set)
         if validation_set:
@@ -206,7 +193,7 @@ class MultilayerNN():
             for i in range(self.n_hidden):
                 j = -(i+1)
                 deltas[j - 1] = self._hidden[j][:, :-1] * (1.0 - self._hidden[j][:, :-1]) * \
-                                np.dot(deltas[j],self.weights[j][:-1].T)
+                                np.dot(deltas[j], self.weights[j][:-1].T)
 
             #update weights
             for i in range(self.n_layers - 1):
@@ -247,15 +234,13 @@ class MultilayerNN():
         if dataset.targets.shape[1] != self.arch[-1]:
             raise ValueError('dataset targets shape is inconsistent with number of network output nodes.')
 
-    @staticmethod
-    def _sigmoid(x):
+    def _sigmoid(self, x):
         if numexpr:
             return ne.evaluate("1.0 / ( 1 + exp(-x))")
         else:
             return 1.0 / (1 + np.exp(-x))
 
-    @staticmethod
-    def _softmax(z):
+    def _softmax(self, z):
         assert len(z.shape) == 2
         s = np.max(z, axis=1)
         s = s[:, np.newaxis]  # necessary step to do broadcasting
